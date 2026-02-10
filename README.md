@@ -409,7 +409,9 @@ COCO_CLASSES = [
 <details open>
 <summary><b>Animal</b></summary>
 
+```
 CATEGORIES = ['gorilla', 'spider-monkey', 'howling-monkey', 'zebra', 'elephant', 'hippo', 'raccon', 'rhino', 'giraffe', 'tiger', 'deer', 'lion', 'panda', 'cheetah', 'black-bear', 'polar-bear', 'antelope', 'fox', 'buffalo', 'cow', 'wolf', 'dog', 'sheep', 'cat', 'horse', 'rabbit', 'pig', 'chimpanzee', 'monkey', 'orangutan']
+```
 
 |                                                                     ONNX Model                                                                      | Input Size | AP (AP10K) |      Description      |
 | :-------------------------------------------------------------------------------------------------------------------------------------------------: | :--------: | :-------: | :-------------------: |
