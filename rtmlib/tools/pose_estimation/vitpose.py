@@ -3,11 +3,11 @@ from typing import List, Tuple
 import numpy as np
 
 from ..base import BaseTool
-from .post_processings import convert_coco_to_openpose, get_simcc_maximum
+from .post_processings import convert_coco_to_openpose, post_dark_udp
 from .pre_processings import bbox_xyxy2cs, top_down_affine
 
 
-class RTMPose(BaseTool):
+class ViTPose(BaseTool):
 
     def __init__(self,
                  onnx_model: str,
@@ -76,28 +76,47 @@ class RTMPose(BaseTool):
             outputs: List[np.ndarray],
             center: Tuple[int, int],
             scale: Tuple[int, int],
-            simcc_split_ratio: float = 2.0) -> Tuple[np.ndarray, np.ndarray]:
-        """Postprocess for RTMPose model output.
+            score_threshold: float = 0.0,
+            dark_kernel: int = 11) -> Tuple[np.ndarray, np.ndarray]:
+        """Postprocess for ViTPose model output.
 
         Args:
-            outputs (np.ndarray): Output of RTMPose model.
-            model_input_size (tuple): RTMPose model Input image size.
+            outputs (np.ndarray): Output heatmaps of ViTPose model.
             center (tuple): Center of bbox in shape (x, y).
             scale (tuple): Scale of bbox in shape (w, h).
-            simcc_split_ratio (float): Split ratio of simcc.
+            score_threshold (float): Threshold to filter out low score keypoints.
+            dark_kernel (int): Kernel size for DARK post-processing.
 
         Returns:
             tuple:
             - keypoints (np.ndarray): Rescaled keypoints.
             - scores (np.ndarray): Model predict scores.
         """
-        # decode simcc
-        simcc_x, simcc_y = outputs
-        locs, scores = get_simcc_maximum(simcc_x, simcc_y)
-        keypoints = locs / simcc_split_ratio
+        # extract heatmaps
+        heatmaps = outputs[0]
+        N, K, H, W = heatmaps.shape
+        
+        # get initial keypoints and scores from heatmaps
+        heatmaps_reshaped = heatmaps.reshape((N, K, -1))
+        idx = np.argmax(heatmaps_reshaped, 2).reshape((N, K, 1))
+        scores = np.max(heatmaps_reshaped, 2).reshape((N, K, 1))
+        
+        # convert flattened indices to 2D coordinates
+        keypoints = np.tile(idx, (1, 1, 2)).astype(np.float32)
+        keypoints[..., 0] = keypoints[..., 0] % W
+        keypoints[..., 1] = keypoints[..., 1] // W
+        
+        # filter low-confidence keypoints
+        keypoints = np.where(np.tile(scores, (1, 1, 2)) > score_threshold, keypoints, -1)
+        
+        # apply DARK post-processing for sub-pixel accuracy 
+        keypoints = post_dark_udp(keypoints, heatmaps, kernel=dark_kernel)
 
         # rescale keypoints
-        keypoints = keypoints / self.model_input_size * scale
+        keypoints = keypoints / (np.array([W, H]) - 1) * scale
         keypoints = keypoints + center - scale / 2
 
+        scores = np.squeeze(scores, axis=2)
+
         return keypoints, scores
+   

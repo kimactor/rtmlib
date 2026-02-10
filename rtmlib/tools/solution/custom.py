@@ -12,7 +12,7 @@ cap = cv2.VideoCapture('./demo.mp4')
 
 openpose_skeleton = False  # True for openpose-style, False for mmpose-style
 
-# Example: BodyWithFeet in balanced mode
+# Example: RTMPose BodyWithFeet in balanced mode
 custom = Custom(to_openpose=openpose_skeleton,
                 det_class='YOLOX',
                 det='https://download.openmmlab.com/mmpose/v1/projects/rtmposev1/onnx_sdk/yolox_m_8xb8-300e_humanart-c2c7a14a.zip', # noqa
@@ -22,6 +22,17 @@ custom = Custom(to_openpose=openpose_skeleton,
                 pose_input_size=(192, 256),
                 backend=backend,
                 device=device)
+
+# # Example: ViTPose BodyWithFeet in balanced mode
+# custom = Custom(to_openpose=openpose_skeleton,
+#                 det_class='YOLOX',
+#                 det='https://download.openmmlab.com/mmpose/v1/projects/rtmposev1/onnx_sdk/yolox_m_8xb8-300e_humanart-c2c7a14a.zip', # noqa
+#                 det_input_size=(640, 640),
+#                 pose_class='ViTPose',
+#                 pose='https://huggingface.co/JunkyByte/easy_ViTPose/resolve/main/onnx/coco_25/vitpose-l-coco_25.onnx', # noqa
+#                 pose_input_size=(192, 256),
+#                 backend=backend,
+#                 device=device)
 
 # # Example: RTMO in balanced mode
 # custom = Custom(to_openpose=openpose_skeleton,
@@ -39,6 +50,18 @@ custom = Custom(to_openpose=openpose_skeleton,
 #                 pose_class='RTMPose',
 #                 pose='https://download.openmmlab.com/mmpose/v1/projects/rtmposev1/onnx_sdk/rtmpose-m_simcc-hand5_pt-aic-coco_210e-256x256-74fb594_20230320.zip',
 #                 pose_input_size=(256, 256),
+#                 backend=backend,
+#                 device=device)
+
+# # Example: Human and animal 
+# custom = Custom(to_openpose=openpose_skeleton,
+#                 det_class='YOLOX',
+#                 det_mode='multiclass', # or det_categories=[0,23] for example,
+#                 det='https://github.com/Megvii-BaseDetection/YOLOX/releases/download/0.1.1rc0/yolox_s.onnx',
+#                 det_input_size=(640,640),
+#                 pose_class='ViTPose',
+#                 pose='https://huggingface.co/JunkyByte/easy_ViTPose/resolve/main/onnx/apt36k/vitpose-b-apt36k.onnx',
+#                 pose_input_size=(192, 256),
 #                 backend=backend,
 #                 device=device)
 
@@ -76,6 +99,8 @@ class Custom:
                  det_class: str = None,
                  det: str = None,
                  det_input_size: tuple = (640, 640),
+                 det_mode: str = 'human',
+                 det_categories: list = None,
                  pose_class: str = None,
                  pose: str = None,
                  pose_input_size: tuple = (192, 256),
@@ -86,11 +111,17 @@ class Custom:
 
         if det_class is not None:
             try:
+                if det_categories is not None:
+                    det_mode = 'multiclass'
+
                 det_class = getattr(rtmlib_module, det_class)
                 self.det_model = det_class(det,
                                     model_input_size=det_input_size,
+                                    mode=det_mode,
                                     backend=backend,
                                     device=device)
+                self.det_mode = det_mode
+                self.det_categories = det_categories
                 self.one_stage = False
 
             except ImportError:
@@ -113,7 +144,14 @@ class Custom:
         if self.one_stage:
             keypoints, scores = self.pose_model(image)
         else:
-            bboxes = self.det_model(image)
+            if self.det_categories or self.det_mode == 'multiclass':
+                if self.det_categories:
+                    bboxes, classes = self.det_model(image)
+                    bboxes = [bbox for bbox, cls in zip(bboxes, classes) if cls in self.det_categories]
+                else:
+                    bboxes, _ = self.det_model(image)
+            else:
+                bboxes = self.det_model(image)
             keypoints, scores = self.pose_model(image, bboxes=bboxes)
 
         return keypoints, scores
