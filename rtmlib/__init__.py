@@ -1,7 +1,12 @@
-from .tools import (RTMO, YOLOX, Body, Hand, PoseTracker, RTMDet, RTMPose,
-                    Wholebody, BodyWithFeet)
-from .visualization.draw import draw_bbox, draw_skeleton, draw_skeleton_fixColor
+
+from .tools import (RTMO, YOLOX, Animal, Body, BodyWithFeet, Custom, Hand,
+                    PoseTracker, RTMDet, RTMPose, RTMPose3d, ViTPose,
+                    Wholebody, Wholebody3d)
+from .visualization.draw import draw_bbox, draw_skeleton
 
 __all__ = [
-    'RTMDet', 'RTMPose', 'YOLOX', 'Wholebody', 'Body', 'draw_skeleton', 'draw_skeleton_fixColor',
-    'draw_bbox', 'PoseTracker', 'Hand', 'RTMO', 'BodyWithFeet']
+    'YOLOX', 'RTMDet', 'RTMPose', 'RTMO', 'RTMPose3d', 'ViTPose',
+    'PoseTracker', 'Wholebody', 'Wholebody3d', 'Body', 'Hand', 'BodyWithFeet',
+    'Animal', 'Custom', 'draw_skeleton', 'draw_bbox'
+]
+
